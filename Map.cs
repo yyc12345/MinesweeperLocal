@@ -3,18 +3,41 @@ using System.Collections.Generic;
 using System.Text;
 using System.Numerics;
 using System.IO;
+using System.Linq;
 
 namespace MinesweeperLocal {
 
     public class Map {
 
         public Map(FilePathBuilder folder, double difficulty, int chunkLength) {
+            gameFolder = folder;
+            mapDifficulty = difficulty;
+            mapChunkLength = chunkLength;
 
+            if (checkInfo() == false) throw new ArgumentException();
+
+            userOperationPos = new Point(0, 0);
+            userViewPos = new Point(0, 0);
         }
 
         public Map(FilePathBuilder recordFolder) {
-
+            LoadMapInfo();
+            if (checkInfo() == false) throw new ArgumentException();
         }
+
+        #region general operation
+
+        public void Close() {
+            FlushAll();
+            SaveMapInfo();
+        }
+
+        public event Action Refresh;
+        public void OnRefresh() {
+            Refresh?.Invoke();
+        }
+
+        #endregion
 
         #region suggestions
 
@@ -39,6 +62,46 @@ namespace MinesweeperLocal {
             return true;
         }
 
+        void SaveMapInfo() {
+            //get file
+            var path = gameFolder.Clone();
+            path.Enter("minesweeper.dat");
+            //open and seek file
+            var cache = new FileStream(path.Path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            var file = new BinaryWriter(cache, Encoding.UTF8, true);
+            //write data
+            file.Write(mapDifficulty);
+            file.Write(mapChunkLength);
+            file.Write(userOperationPos.ToString());
+
+            //close
+            file.Close();
+            file.Dispose();
+            cache.Close();
+            cache.Dispose();
+        }
+
+        void LoadMapInfo() {
+            //get file
+            var path = gameFolder.Clone();
+            path.Enter("minesweeper.dat");
+            //open and seek file
+            var cache = new FileStream(path.Path, FileMode.Open, FileAccess.Read, FileShare.None);
+            var file = new BinaryReader(cache, Encoding.UTF8, true);
+            //read data
+            mapDifficulty = file.ReadDouble();
+            mapChunkLength = file.ReadInt32();
+
+            userOperationPos = new Point(file.ReadString());
+            userViewPos = userOperationPos;     //force fix view position
+
+            //close
+            file.Close();
+            file.Dispose();
+            cache.Close();
+            cache.Dispose();
+        }
+
         #endregion
 
         #region user info
@@ -46,7 +109,16 @@ namespace MinesweeperLocal {
         public Point UserOperationPos {
             get { return userOperationPos; }
             set {
+                userOperationPos = value;
+                userOperationChunk = GetChunk(userOperationPos);
 
+                //judge
+                if (userOperationChunk != previousUserOperationChunk) {
+                    //raise update
+                    RefreshStrongChunk();
+
+                    previousUserOperationChunk = userOperationChunk;
+                }
             }
         }
         Point userOperationPos;
@@ -56,7 +128,16 @@ namespace MinesweeperLocal {
         public Point UserViewPos {
             get { return userViewPos; }
             set {
+                userViewPos = value;
+                userViewChunk = GetChunk(userViewPos);
 
+                //judge
+                if (userViewChunk != previousUserViewChunk) {
+                    //raise update
+                    RefreshStrongChunk();
+
+                    previousUserViewChunk = userViewChunk;
+                }
             }
         }
         Point userViewPos;
@@ -66,17 +147,98 @@ namespace MinesweeperLocal {
 
         #endregion
 
+        #region map
+
+        void PressCell(Point pos) {
+
+        }
+
+        Cell[,] GetCellsRectangle(Point startPoint, int width, int height) {
+
+        }
+
+        Cell GetCell(Point pos) {
+
+        }
+
+        void SetCell(Point pos, Cell newCell) {
+
+        }
+
+        #endregion
+
         #region map chunk
 
         List<MapChunk> chunkList;
+        object lockChunkList;
 
         void FlushWeakLoad() {
-
+            foreach (var item in chunkList) {
+                if (item.IsStrongLoading == false) {
+                    //save
+                    SaveChunk(item);
+                    chunkList.Remove(item);
+                }
+            }
         }
 
         void RefreshStrongChunk() {
+            HashSet<string> previousChunk = new HashSet<string>();
+            HashSet<string> nowChunk = new HashSet<string>();
+
+            //record pre
+            foreach (var item in chunkList) {
+                //only record strong load chunk
+                if (item.IsStrongLoading == true) previousChunk.Add(item.ChunkPosition.ToString());
+            }
+
+            //record now
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    nowChunk.Add(new Point(this.userOperationChunk.X + i, this.userOperationChunk.Y + j).ToString());
+                    nowChunk.Add(new Point(this.userViewChunk.X + i, this.userViewChunk.Y + j).ToString());
+                }
+            }
+
+            //get info
+            var deletedChunk = from item in previousChunk
+                               where !nowChunk.Contains(item)
+                               select item;
+
+            var addedChunk = (from item in nowChunk
+                              where !previousChunk.Contains(item)
+                              select item).ToList();
+
+            //process
+            //delete and restore
+            foreach (var item in chunkList) {
+                //del
+                if (deletedChunk.Contains(item.ChunkPosition.ToString())) {
+                    SaveChunk(item);
+                    chunkList.Remove(item);
+                }
+                //restore weak load
+                if (addedChunk.Contains(item.ChunkPosition.ToString())) {
+                    item.IsStrongLoading = true;
+                    addedChunk.Remove(item.ChunkPosition.ToString());
+                }
+
+            }
+
+            //load strong chunk
+            foreach (var item in addedChunk) {
+                StrongLoadChunk(new Point(item));
+            }
 
         }
+
+        void FlushAll() {
+            foreach (var item in chunkList) {
+                SaveChunk(item);
+            }
+            chunkList.Clear();
+        }
+
 
         #endregion
 
@@ -137,7 +299,7 @@ namespace MinesweeperLocal {
         }
 
         string GetFileName(Point file) {
-            return file.X.ToString() + "," + file.Y.ToString() + ".msd";
+            return file.ToString() + ".msd";
 
         }
 
@@ -212,7 +374,7 @@ namespace MinesweeperLocal {
         }
 
         void StrongLoadChunk(Point chunk) {
-            this.chunkList.Add( new MapChunk(chunk, LoadChunk(chunk), this.mapChunkLength, true));
+            this.chunkList.Add(new MapChunk(chunk, LoadChunk(chunk), this.mapChunkLength, true));
         }
 
         void WeakLoadChunk(Point chunk) {
@@ -220,9 +382,6 @@ namespace MinesweeperLocal {
         }
 
         #endregion
-
-
-
 
     }
 
@@ -252,6 +411,12 @@ namespace MinesweeperLocal {
             Y = y;
         }
 
+        public Point(string str) {
+            var cache = str.Split(',');
+            X = BigInteger.Parse(cache[0]);
+            Y = BigInteger.Parse(cache[1]);
+        }
+
         public static Point operator +(Point a, Point b) {
             return new Point(a.X + b.X, a.Y + b.Y);
         }
@@ -260,8 +425,21 @@ namespace MinesweeperLocal {
             return new Point(a.X - b.X, a.Y - b.Y);
         }
 
+        public static bool operator ==(Point a, Point b) {
+            if (a.X == b.X && a.Y == b.Y) return true;
+            else return false;
+        }
+
+        public static bool operator !=(Point a, Point b) {
+            return !(a == b);
+        }
+
         public BigInteger X;
         public BigInteger Y;
+
+        public override string ToString() {
+            return X.ToString() + "," + Y.ToString();
+        }
     }
 
 }

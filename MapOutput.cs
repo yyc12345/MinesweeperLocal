@@ -6,7 +6,9 @@ namespace MinesweeperLocal {
 
     public class MapOutput {
 
-        public MapOutput()
+        public MapOutput() {
+
+        }
 
         #region get character
 
@@ -48,6 +50,10 @@ namespace MinesweeperLocal {
         }
 
         #endregion
+
+        public void Output(Cell[,] cells) {
+
+        }
 
     }
 

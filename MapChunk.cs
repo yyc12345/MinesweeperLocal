@@ -17,7 +17,7 @@ namespace MinesweeperLocal {
         }
 
         public Point ChunkPosition;
-        public bool IsStrongLoading { get; private set; }
+        public bool IsStrongLoading { get; set; }
         Cell[,] data;
 
         public Cell this[int posX,int posY] {
