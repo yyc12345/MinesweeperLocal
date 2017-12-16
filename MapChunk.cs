@@ -20,12 +20,12 @@ namespace MinesweeperLocal {
         public bool IsStrongLoading { get; set; }
         Cell[,] data;
 
-        public Cell this[int posX,int posY] {
+        public Cell this[Point pos] {
             get {
-                return data[posX, posY];
+                return data[int.Parse(pos.X.ToString()), int.Parse(pos.Y.ToString())];
             }
             set {
-                data[posX, posY] = value;
+                data[int.Parse(pos.X.ToString()), int.Parse(pos.Y.ToString())] = value;
             }
         }
     }
