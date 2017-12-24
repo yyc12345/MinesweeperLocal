@@ -12,6 +12,8 @@ namespace MinesweeperLocal {
     public class Map {
 
         public Map(FilePathBuilder folder, double difficulty, int chunkLength) {
+            chunkList = new Dictionary<Point, MapChunk>();
+            lockChunkList = new object();
             gameFolder = folder;
             mapDifficulty = difficulty;
             mapChunkLength = chunkLength;
@@ -19,14 +21,20 @@ namespace MinesweeperLocal {
             if (checkInfo() == false) throw new ArgumentException();
 
             userPos = new Point(0, 0);
+            RefreshStrongChunk();
             WeakLoadChunkCleaner();
+            OnRefresh();
         }
 
         public Map(FilePathBuilder recordFolder) {
+            chunkList = new Dictionary<Point, MapChunk>();
+            lockChunkList = new object();
             LoadMapInfo();
             if (checkInfo() == false) throw new ArgumentException();
 
             WeakLoadChunkCleaner();
+            RefreshStrongChunk();
+            OnRefresh();
         }
 
         #region general operation
@@ -34,6 +42,26 @@ namespace MinesweeperLocal {
         public void Close() {
             FlushAll();
             SaveMapInfo();
+        }
+
+        public void Press() {
+            Task.Run(() => {
+                this.PressCell(this.userPos);
+
+                OnRefresh();
+            });
+        }
+
+        public void Flag() {
+            Task.Run(() => {
+                if (this.GetCell(this.userPos).Status == CellUserStatus.Flag) {
+                    this.GetCell(this.userPos).Status = CellUserStatus.Blank;
+                } else {
+                    this.GetCell(this.userPos).Status = CellUserStatus.Flag;
+                }
+
+                OnRefresh();
+            });
         }
 
         public event Action Refresh;
@@ -122,6 +150,8 @@ namespace MinesweeperLocal {
 
                     previousUserChunk = userChunk;
                 }
+
+                OnRefresh();
             }
         }
         Point userPos;
@@ -238,7 +268,7 @@ namespace MinesweeperLocal {
             return;
         }
 
-        Cell[,] GetCellsRectangle(Point startPoint, int width, int height) {
+        public Cell[,] GetCellsRectangle(Point startPoint, int width, int height) {
             Cell[,] result = new Cell[width, height];
 
             if (GetChunk(startPoint) == GetChunk(startPoint + new Point(width - 1, height - 1))) {
@@ -284,7 +314,7 @@ namespace MinesweeperLocal {
                             result[i, j] = cache[chunk][GetChunkInnerPos(startPoint + offset)];
                         } else {
                             //no loaded. weak load now
-                            WeakLoadChunk(GetChunk(startPoint));
+                            WeakLoadChunk(chunk);
                             //get chunk
                             cache.Add(chunk, chunkList[chunk]);
                             result[i, j] = cache[chunk][GetChunkInnerPos(startPoint + offset)];
@@ -432,6 +462,7 @@ namespace MinesweeperLocal {
 
             for (int i = 0; i < this.mapChunkLength; i++) {
                 for (int j = 0; j < this.mapChunkLength; j++) {
+                    map[i, j] = new Cell();
                     map[i, j].Status = CellUserStatus.Unopen;
                     map[i, j].IsMine = (rnd.NextDouble() < this.mapDifficulty);
                     map[i, j].IsWrong = false;
@@ -491,11 +522,16 @@ namespace MinesweeperLocal {
             Cell[,] map;
 
             //if this area's map is not generated. generate it now and load it wait to save
-            if (file.ReadByte() != fileGeneratedSign) goto generate;
+            try {
+                if (file.ReadByte() != fileGeneratedSign) goto generate;
+            } catch (Exception) {
+                goto generate;
+            }
 
             map = new Cell[this.mapChunkLength, this.mapChunkLength];
             for (int i = 0; i < this.mapChunkLength; i++) {
                 for (int j = 0; j < this.mapChunkLength; j++) {
+                    map[i, j] = new Cell();
                     map[i, j].Status = (CellUserStatus)file.ReadByte();
                     map[i, j].IsMine = file.ReadByte() == 1;
                     map[i, j].IsWrong = file.ReadByte() == 1;
