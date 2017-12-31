@@ -64,8 +64,8 @@ namespace MinesweeperLocal {
                 var cache = this.GetCell(this.userPos);
 
                 if (cache.Status == CellUserStatus.Flag && cache.IsWrong == false) {
-                    this.GetCell(this.userPos).Status = CellUserStatus.Blank;
-                } else {
+                    this.GetCell(this.userPos).Status = CellUserStatus.Unopen;
+                } else if (cache.Status == CellUserStatus.Unopen) {
                     this.GetCell(this.userPos).Status = CellUserStatus.Flag;
                 }
 
