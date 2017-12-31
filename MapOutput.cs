@@ -42,6 +42,10 @@ namespace MinesweeperLocal {
             }
         }
 
+        private char GetTotalBlock() {
+            return (char)9608;
+        }
+
         private enum CornerType {
             TopLeft,
             TopRight,
@@ -55,18 +59,27 @@ namespace MinesweeperLocal {
             StringBuilder sb = new StringBuilder();
             sb.Append(GetCorner(CornerType.TopLeft));
             sb.Append(GetBorder(true));
+            sb.Append(GetBorder(true));
+            sb.Append(GetBorder(true));
             sb.Append(GetCorner(CornerType.TopRight));
             string head = sb.ToString();
 
             sb.Clear();
             sb.Append(GetCorner(CornerType.BottomLeft));
             sb.Append(GetBorder(true));
+            sb.Append(GetBorder(true));
+            sb.Append(GetBorder(true));
             sb.Append(GetCorner(CornerType.BottomRight));
             string foot = sb.ToString();
 
             for (int i = 0; i < cells.GetLength(1); i++) {
 
-                for (int q = cells.GetLength(0) - 1; q >= 0; q--) {
+                for (int q = 0; q < cells.GetLength(0); q++) {
+
+                    if (cells[q, i].Status == CellUserStatus.Unopen) {
+                        Console.BackgroundColor = ConsoleColor.DarkGray;
+                    }
+
                     if (q == central.X && i == central.Y) {
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.Write(head);
@@ -74,54 +87,40 @@ namespace MinesweeperLocal {
                     } else {
                         Console.Write(head);
                     }
+
+                    Console.BackgroundColor = ConsoleColor.Black;
                 }
                 Console.Write("\n");
 
 
-                for (int j = cells.GetLength(0) - 1; j >= 0; j--) {
-                    Console.Write(GetBorder(false));
+                for (int j = 0; j < cells.GetLength(0); j++) {
 
-                    switch (cells[j, i].Status) {
-                        case CellUserStatus.Blank:
-                            break;
-                        case CellUserStatus.Number1:
-                            Console.ForegroundColor = ConsoleColor.Blue;
-                            break;
-                        case CellUserStatus.Number2:
-                            Console.ForegroundColor = ConsoleColor.DarkGreen;
-                            break;
-                        case CellUserStatus.Number3:
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            break;
-                        case CellUserStatus.Number4:
-                            Console.ForegroundColor = ConsoleColor.DarkBlue;
-                            break;
-                        case CellUserStatus.Number5:
-                            Console.ForegroundColor = ConsoleColor.DarkRed;
-                            break;
-                        case CellUserStatus.Number6:
-                            Console.ForegroundColor = ConsoleColor.Cyan;
-                            break;
-                        case CellUserStatus.Number7:
-                            Console.ForegroundColor = ConsoleColor.Gray;
-                            break;
-                        case CellUserStatus.Number8:
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            break;
-                        case CellUserStatus.Flag:
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            break;
-                        case CellUserStatus.Unopen:
-                            break;
-                        case CellUserStatus.NoLoaded:
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                            break;
+                    //set bk
+                    if (cells[j, i].Status == CellUserStatus.Unopen) {
+                        Console.BackgroundColor = ConsoleColor.DarkGray;
                     }
 
+                    //draw border
+                    if (j == central.X && i == central.Y) {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write(GetBorder(false));
+                        Console.ForegroundColor = ConsoleColor.White;
+                    } else {
+                        Console.Write(GetBorder(false));
+                    }
+
+                    //judge color
                     if (cells[j, i].IsWrong) {
-                        Console.BackgroundColor = ConsoleColor.White;
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        if (cells[j, i].Status == CellUserStatus.Flag)
+                            Console.ForegroundColor = ConsoleColor.Magenta;
+                    } else {
+                        if (cells[j, i].Status == CellUserStatus.Flag)
+                            Console.ForegroundColor = ConsoleColor.Yellow;
                     }
 
+                    //write char
+                    Console.Write(" ");
                     switch (cells[j, i].Status) {
                         case CellUserStatus.Blank:
                         case CellUserStatus.Unopen:
@@ -159,16 +158,31 @@ namespace MinesweeperLocal {
                             break;
                     }
 
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.BackgroundColor = ConsoleColor.Black;
+                    Console.Write(" ");
 
-                    Console.Write(GetBorder(false));
+                    //draw border
+                    Console.ForegroundColor = ConsoleColor.White;
+                    if (j == central.X && i == central.Y) {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.Write(GetBorder(false));
+                        Console.ForegroundColor = ConsoleColor.White;
+                    } else {
+                        Console.Write(GetBorder(false));
+                    }
+
+                    //restore bk
+                    Console.BackgroundColor = ConsoleColor.Black;
 
                 }
                 Console.Write("\n");
 
 
-                for (int q = cells.GetLength(0) - 1; q >= 0; q--) {
+                for (int q = 0; q < cells.GetLength(0); q++) {
+
+                    if (cells[q, i].Status == CellUserStatus.Unopen) {
+                        Console.BackgroundColor = ConsoleColor.DarkGray;
+                    }
+
                     if (q == central.X && i == central.Y) {
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.Write(foot);
@@ -176,6 +190,8 @@ namespace MinesweeperLocal {
                     } else {
                         Console.Write(foot);
                     }
+
+                    Console.BackgroundColor = ConsoleColor.Black;
                 }
                 Console.Write("\n");
 

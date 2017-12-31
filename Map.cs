@@ -12,8 +12,6 @@ namespace MinesweeperLocal {
     public class Map {
 
         public Map(FilePathBuilder folder, double difficulty, int chunkLength) {
-            chunkList = new Dictionary<Point, MapChunk>();
-            lockChunkList = new object();
             gameFolder = folder;
             mapDifficulty = difficulty;
             mapChunkLength = chunkLength;
@@ -21,23 +19,28 @@ namespace MinesweeperLocal {
             if (checkInfo() == false) throw new ArgumentException();
 
             userPos = new Point(0, 0);
-            RefreshStrongChunk();
-            WeakLoadChunkCleaner();
-            OnRefresh();
         }
 
         public Map(FilePathBuilder recordFolder) {
-            chunkList = new Dictionary<Point, MapChunk>();
-            lockChunkList = new object();
+            gameFolder = recordFolder;
             LoadMapInfo();
             if (checkInfo() == false) throw new ArgumentException();
+        }
+
+        #region general operation
+
+        bool withoutInitialization = true;
+
+        public void Initialize() {
+            withoutInitialization = false;
+
+            chunkList = new Dictionary<Point, MapChunk>();
+            lockChunkList = new object();
 
             WeakLoadChunkCleaner();
             RefreshStrongChunk();
             OnRefresh();
         }
-
-        #region general operation
 
         public void Close() {
             FlushAll();
@@ -52,9 +55,15 @@ namespace MinesweeperLocal {
             });
         }
 
+        public Cell[,] GetCellData(Point startPoint, int width, int height) {
+            return this.GetCellsRectangle(startPoint, width, height);
+        }
+
         public void Flag() {
             Task.Run(() => {
-                if (this.GetCell(this.userPos).Status == CellUserStatus.Flag) {
+                var cache = this.GetCell(this.userPos);
+
+                if (cache.Status == CellUserStatus.Flag && cache.IsWrong == false) {
                     this.GetCell(this.userPos).Status = CellUserStatus.Blank;
                 } else {
                     this.GetCell(this.userPos).Status = CellUserStatus.Flag;
@@ -151,7 +160,8 @@ namespace MinesweeperLocal {
                     previousUserChunk = userChunk;
                 }
 
-                OnRefresh();
+                if (!withoutInitialization)
+                    OnRefresh();
             }
         }
         Point userPos;
@@ -192,7 +202,7 @@ namespace MinesweeperLocal {
                     int unopen = 0;
                     for (int i = 0; i < 3; i++) {
                         for (int j = 0; j < 3; j++) {
-                            if (j != 1 && i != 1) {
+                            if (!(j == 1 && i == 1)) {
                                 if (nineSudoku[i, j].IsMine == true) number++;
                                 if (nineSudoku[i, j].Status == CellUserStatus.Flag) flags++;
                                 if (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag) unopen++;
@@ -234,7 +244,7 @@ namespace MinesweeperLocal {
                         //set all unopen cell to be flag
                         for (int i = 0; i < 3; i++) {
                             for (int j = 0; j < 3; j++) {
-                                if (j != 1 && i != 1) {
+                                if (!(j == 1 && i == 1)) {
                                     //because the cell, whose status is flag, don't need any operation. so i ignore them.
                                     if (nineSudoku[i, j].Status == CellUserStatus.Unopen) nineSudoku[i, j].Status = CellUserStatus.Flag;
                                 }
@@ -242,7 +252,7 @@ namespace MinesweeperLocal {
                         }
 
                         return;
-                    } else if (flags == number) {
+                    } else if (flags != number) {
                         //check automatical open
                         //some mine is not flag. pass.
                         return;
@@ -255,7 +265,7 @@ namespace MinesweeperLocal {
                             for (int j = 0; j < 3; j++) {
                                 offset.Y = j - 1;
                                 //only operate unopen cell
-                                if (j != 1 && i != 1 &&
+                                if ((!(j == 1 && i == 1)) &&
                                     (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag)) {
                                     PressCell(pos + offset);
                                 }
@@ -268,7 +278,7 @@ namespace MinesweeperLocal {
             return;
         }
 
-        public Cell[,] GetCellsRectangle(Point startPoint, int width, int height) {
+        Cell[,] GetCellsRectangle(Point startPoint, int width, int height) {
             Cell[,] result = new Cell[width, height];
 
             if (GetChunk(startPoint) == GetChunk(startPoint + new Point(width - 1, height - 1))) {

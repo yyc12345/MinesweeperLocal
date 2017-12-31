@@ -13,7 +13,8 @@ namespace MinesweeperLocal {
         static void Main(string[] args) {
             var currentFolder = new FilePathBuilder(Environment.CurrentDirectory, Environment.OSVersion.Platform);
 
-            var map = new Map(currentFolder, Map.DifficulyBeginner, Map.MapChunckLengthDefault);
+            //var map = new Map(currentFolder, Map.DifficulyExpert, Map.MapChunckLengthDefault);
+            var map = new Map(currentFolder);
 
             bool isCanceled = false;
             var output = new MapOutput();
@@ -21,27 +22,30 @@ namespace MinesweeperLocal {
                 if (!isCanceled) {
                     Console.Clear();
                     Console.WriteLine("Now pos: " + map.UserPos.ToString());
-                    int w = Console.BufferWidth / 3;
-                    int h = 6; //Console.BufferHeight / 3;
+                    int w = Console.BufferWidth / 5;
+                    int h = 16; //Console.BufferHeight / 3;
                     Point c = map.UserPos;
 
                     var p = new Point(c.X - (w % 2 == 0 ? w / 2 - 1 : (w - 1) / 2), c.Y - (h % 2 == 0 ? h / 2 - 1 : (h - 1) / 2));
-                    output.Output(map.GetCellsRectangle(p, w, h), new Point(0,0) - p);
+                    output.Output(map.GetCellData(p, w, h), c - p);
                 }
             };
+
+            //init
+            map.Initialize();
 
             while (true) {
                 var result = Console.ReadKey(true);
 
                 switch (result.Key) {
                     case ConsoleKey.W:
-                        map.UserPos = map.UserPos + new Point(0, 1);
+                        map.UserPos = map.UserPos + new Point(0, -1);
                         break;
                     case ConsoleKey.A:
                         map.UserPos = map.UserPos + new Point(-1, 0);
                         break;
                     case ConsoleKey.S:
-                        map.UserPos = map.UserPos + new Point(0, -1);
+                        map.UserPos = map.UserPos + new Point(0, 1);
                         break;
                     case ConsoleKey.D:
                         map.UserPos = map.UserPos + new Point(1, 0);
