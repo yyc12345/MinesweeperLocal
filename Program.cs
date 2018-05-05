@@ -13,8 +13,23 @@ namespace MinesweeperLocal {
         static void Main(string[] args) {
             var currentFolder = new FilePathBuilder(Environment.CurrentDirectory, Environment.OSVersion.Platform);
 
-            //var map = new Map(currentFolder, Map.DifficulyExpert, Map.MapChunckLengthDefault);
-            var map = new Map(currentFolder);
+            //get choice
+            Map map;
+            Console.WriteLine("Make your choice: N for a new minesweeper map and L for loading current minesweeper map.");
+            var str = Console.ReadKey();
+            if (str.Key == ConsoleKey.N) {
+                map = new Map(currentFolder, Map.DifficulyExpert, Map.MapChunckLengthDefault);
+            } else {
+                if (str.Key == ConsoleKey.L) {
+                    map = new Map(currentFolder);
+                } else {
+                    Console.WriteLine("Illegal key. App will exit.");
+                    Environment.Exit(0);
+                    //???.jpg > if lost this. net core will raise a error for value "map"
+                    return;
+                }
+            }
+
 
             bool isCanceled = false;
             var output = new MapOutput();
