@@ -12,6 +12,7 @@ namespace MinesweeperLocal {
 
         static void Main(string[] args) {
             var currentFolder = new FilePathBuilder(Environment.CurrentDirectory, Environment.OSVersion.Platform);
+            var runtimeMsg = "";
 
             //get choice
             Map map;
@@ -36,14 +37,23 @@ namespace MinesweeperLocal {
             map.Refresh += () => {
                 if (!isCanceled) {
                     Console.Clear();
+                    //now pos
                     Console.WriteLine("Now pos: " + map.UserPos.ToString());
                     int w = Console.BufferWidth / 5;
                     int h = 16; //Console.BufferHeight / 3;
                     Point c = map.UserPos;
 
+                    //map struct
                     var p = new Point(c.X - (w % 2 == 0 ? w / 2 - 1 : (w - 1) / 2), c.Y - (h % 2 == 0 ? h / 2 - 1 : (h - 1) / 2));
                     output.Output(map.GetCellData(p, w, h), c - p);
+
+                    //runtime message
+                    Console.WriteLine($"Real-time message: {runtimeMsg}");
+                    runtimeMsg = "";
                 }
+            };
+            map.NewInformation += (s) => {
+                runtimeMsg = s;
             };
 
             //init

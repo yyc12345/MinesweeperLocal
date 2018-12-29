@@ -49,7 +49,16 @@ namespace MinesweeperLocal {
 
         public void Press() {
             Task.Run(() => {
-                this.PressCell(this.userPos);
+                var cache = this.GetCell(this.userPos);
+                if (cache.Status == CellUserStatus.Flag) {
+                    OnNewInformation("You couldn't open flaged cell!");
+                } else if (cache.IsMine == true) {
+                    OnNewInformation("You open a wrong cell!");
+                } else {
+                    lock (lockChunkList) {
+                        this.PressCell(this.userPos);
+                    }
+                }
 
                 OnRefresh();
             });
@@ -63,10 +72,12 @@ namespace MinesweeperLocal {
             Task.Run(() => {
                 var cache = this.GetCell(this.userPos);
 
-                if (cache.Status == CellUserStatus.Flag && cache.IsWrong == false) {
+                if (cache.Status == CellUserStatus.Flag) {
                     this.GetCell(this.userPos).Status = CellUserStatus.Unopen;
-                } else if (cache.Status == CellUserStatus.Unopen) {
+                } else if (cache.Status == CellUserStatus.Unopen && cache.IsMine == true) {
                     this.GetCell(this.userPos).Status = CellUserStatus.Flag;
+                } else if (cache.Status == CellUserStatus.Unopen && cache.IsMine == false) {
+                    OnNewInformation("You flag a wrong cell!");
                 }
 
                 OnRefresh();
@@ -76,6 +87,10 @@ namespace MinesweeperLocal {
         public event Action Refresh;
         public void OnRefresh() {
             Refresh?.Invoke();
+        }
+        public event Action<string> NewInformation;
+        public void OnNewInformation(string str) {
+            NewInformation?.Invoke(str);
         }
 
         #endregion
@@ -176,106 +191,184 @@ namespace MinesweeperLocal {
         public readonly Cell NoLoadedCell = new Cell() { Status = CellUserStatus.NoLoaded };
 
         void PressCell(Point pos) {
-            lock (lockChunkList) {
-                var nineSudoku = GetCellsRectangle(pos - new Point(1, 1), 3, 3);
+            var nineSudoku = GetCellsRectangle(pos - new Point(1, 1), 3, 3);
 
-                //check mine
-                if (nineSudoku[1, 1].IsMine) {
-                    if (nineSudoku[1, 1].Status == CellUserStatus.Flag) {
-                        //mine with flag
-                        return;
-                    } else {
-                        //mine without flag
-                        nineSudoku[1, 1].IsWrong = true;
-                        nineSudoku[1, 1].Status = CellUserStatus.Flag;
-                        return;
-                    }
-                } else {
-                    if (nineSudoku[1, 1].Status == CellUserStatus.Flag) {
-                        //flag without mine
-                        nineSudoku[1, 1].IsWrong = true;
-                    }
+            //check invalid status
+            //if (nineSudoku[1, 1].Status != CellUserStatus.Unopen) return;
 
-                    //calc number
-                    int number = 0;
-                    int flags = 0;
-                    int unopen = 0;
-                    for (int i = 0; i < 3; i++) {
-                        for (int j = 0; j < 3; j++) {
-                            if (!(j == 1 && i == 1)) {
-                                if (nineSudoku[i, j].IsMine == true) number++;
-                                if (nineSudoku[i, j].Status == CellUserStatus.Flag) flags++;
-                                if (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag) unopen++;
-                            }
+            //calc number
+            int number = 0;
+            int flags = 0;
+            int unopen = 0;
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    if (!(j == 1 && i == 1)) {
+                        if (nineSudoku[i, j].IsMine == true) number++;
+                        if (nineSudoku[i, j].Status == CellUserStatus.Flag) flags++;
+                        if (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag) unopen++;
+                    }
+                }
+            }
+            switch (number) {
+                case 0:
+                    nineSudoku[1, 1].Status = CellUserStatus.Blank;
+                    break;
+                case 1:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number1;
+                    break;
+                case 2:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number2;
+                    break;
+                case 3:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number3;
+                    break;
+                case 4:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number4;
+                    break;
+                case 5:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number5;
+                    break;
+                case 6:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number6;
+                    break;
+                case 7:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number7;
+                    break;
+                case 8:
+                    nineSudoku[1, 1].Status = CellUserStatus.Number8;
+                    break;
+            }
+
+            if (number == unopen) {
+                //check automatical flag
+                //set all unopen cell to be flag
+                for (int i = 0; i < 3; i++) {
+                    for (int j = 0; j < 3; j++) {
+                        if (!(j == 1 && i == 1)) {
+                            //because the cell, whose status is flag, don't need any operation. so i ignore them.
+                            if (nineSudoku[i, j].Status == CellUserStatus.Unopen) nineSudoku[i, j].Status = CellUserStatus.Flag;
                         }
                     }
-                    switch (number) {
-                        case 0:
-                            nineSudoku[1, 1].Status = CellUserStatus.Blank;
-                            break;
-                        case 1:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number1;
-                            break;
-                        case 2:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number2;
-                            break;
-                        case 3:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number3;
-                            break;
-                        case 4:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number4;
-                            break;
-                        case 5:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number5;
-                            break;
-                        case 6:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number6;
-                            break;
-                        case 7:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number7;
-                            break;
-                        case 8:
-                            nineSudoku[1, 1].Status = CellUserStatus.Number8;
-                            break;
-                    }
+                }
 
-                    if (number == unopen) {
-                        //check automatical flag
-                        //set all unopen cell to be flag
-                        for (int i = 0; i < 3; i++) {
-                            for (int j = 0; j < 3; j++) {
-                                if (!(j == 1 && i == 1)) {
-                                    //because the cell, whose status is flag, don't need any operation. so i ignore them.
-                                    if (nineSudoku[i, j].Status == CellUserStatus.Unopen) nineSudoku[i, j].Status = CellUserStatus.Flag;
-                                }
-                            }
-                        }
-
-                        return;
-                    } else if (flags != number) {
-                        //check automatical open
-                        //some mine is not flag. pass.
-                        return;
-                    } else {
-                        //automatical open can be done
-                        //recursion each cell in nine sudoku
-                        Point offset = new Point(0, 0);
-                        for (int i = 0; i < 3; i++) {
-                            offset.X = i - 1;
-                            for (int j = 0; j < 3; j++) {
-                                offset.Y = j - 1;
-                                //only operate unopen cell
-                                if ((!(j == 1 && i == 1)) &&
-                                    (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag)) {
-                                    PressCell(pos + offset);
-                                }
-                            }
+                return;
+            } else if (flags != number) {
+                //check automatical open
+                //some mine is not flag. pass.
+                return;
+            } else {
+                //automatical open can be done
+                //recursion each cell in nine sudoku
+                Point offset = new Point(0, 0);
+                for (int i = 0; i < 3; i++) {
+                    offset.X = i - 1;
+                    for (int j = 0; j < 3; j++) {
+                        offset.Y = j - 1;
+                        //only operate unopen cell
+                        if ((!(j == 1 && i == 1)) && (nineSudoku[i, j].Status == CellUserStatus.Unopen)) {
+                            PressCell(pos + offset);
                         }
                     }
                 }
             }
 
-            return;
+            /*
+            //check mine
+            if (nineSudoku[1, 1].IsMine) {
+                if (nineSudoku[1, 1].Status == CellUserStatus.Flag) {
+                    //mine with flag
+                    return;
+                } else {
+                    //mine without flag
+                    nineSudoku[1, 1].IsWrong = true;
+                    nineSudoku[1, 1].Status = CellUserStatus.Flag;
+                    return;
+                }
+            } else {
+                if (nineSudoku[1, 1].Status == CellUserStatus.Flag) {
+                    //flag without mine
+                    nineSudoku[1, 1].IsWrong = true;
+                }
+
+                //calc number
+                int number = 0;
+                int flags = 0;
+                int unopen = 0;
+                for (int i = 0; i < 3; i++) {
+                    for (int j = 0; j < 3; j++) {
+                        if (!(j == 1 && i == 1)) {
+                            if (nineSudoku[i, j].IsMine == true) number++;
+                            if (nineSudoku[i, j].Status == CellUserStatus.Flag) flags++;
+                            if (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag) unopen++;
+                        }
+                    }
+                }
+                switch (number) {
+                    case 0:
+                        nineSudoku[1, 1].Status = CellUserStatus.Blank;
+                        break;
+                    case 1:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number1;
+                        break;
+                    case 2:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number2;
+                        break;
+                    case 3:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number3;
+                        break;
+                    case 4:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number4;
+                        break;
+                    case 5:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number5;
+                        break;
+                    case 6:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number6;
+                        break;
+                    case 7:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number7;
+                        break;
+                    case 8:
+                        nineSudoku[1, 1].Status = CellUserStatus.Number8;
+                        break;
+                }
+
+                if (number == unopen) {
+                    //check automatical flag
+                    //set all unopen cell to be flag
+                    for (int i = 0; i < 3; i++) {
+                        for (int j = 0; j < 3; j++) {
+                            if (!(j == 1 && i == 1)) {
+                                //because the cell, whose status is flag, don't need any operation. so i ignore them.
+                                if (nineSudoku[i, j].Status == CellUserStatus.Unopen) nineSudoku[i, j].Status = CellUserStatus.Flag;
+                            }
+                        }
+                    }
+
+                    return;
+                } else if (flags != number) {
+                    //check automatical open
+                    //some mine is not flag. pass.
+                    return;
+                } else {
+                    //automatical open can be done
+                    //recursion each cell in nine sudoku
+                    Point offset = new Point(0, 0);
+                    for (int i = 0; i < 3; i++) {
+                        offset.X = i - 1;
+                        for (int j = 0; j < 3; j++) {
+                            offset.Y = j - 1;
+                            //only operate unopen cell
+                            if ((!(j == 1 && i == 1)) &&
+                                (nineSudoku[i, j].Status == CellUserStatus.Unopen || nineSudoku[i, j].Status == CellUserStatus.Flag)) {
+                                PressCell(pos + offset);
+                            }
+                        }
+                    }
+                }
+            }
+            */
+
         }
 
         Cell[,] GetCellsRectangle(Point startPoint, int width, int height) {
@@ -475,7 +568,6 @@ namespace MinesweeperLocal {
                     map[i, j] = new Cell();
                     map[i, j].Status = CellUserStatus.Unopen;
                     map[i, j].IsMine = (rnd.NextDouble() < this.mapDifficulty);
-                    map[i, j].IsWrong = false;
                 }
             }
 
@@ -544,14 +636,13 @@ namespace MinesweeperLocal {
                     map[i, j] = new Cell();
                     map[i, j].Status = (CellUserStatus)file.ReadByte();
                     map[i, j].IsMine = file.ReadByte() == 1;
-                    map[i, j].IsWrong = file.ReadByte() == 1;
                 }
             }
             goto close;
 
-        generate:
+            generate:
             map = GenerateMap();
-        close:
+            close:
             //close
             file.Close();
             file.Dispose();
@@ -579,7 +670,6 @@ namespace MinesweeperLocal {
                     offset.Y = j;
                     file.Write((byte)(chunk[offset].Status));
                     file.Write((byte)(chunk[offset].IsMine ? 1 : 0));
-                    file.Write((byte)(chunk[offset].IsWrong ? 1 : 0));
                 }
             }
 
@@ -619,7 +709,6 @@ namespace MinesweeperLocal {
 
     public class Cell {
         public CellUserStatus Status = CellUserStatus.Unopen;
-        public bool IsWrong = false;
         public bool IsMine = true;
     }
 

@@ -110,14 +110,9 @@ namespace MinesweeperLocal {
                     }
 
                     //judge color
-                    if (cells[j, i].IsWrong) {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        if (cells[j, i].Status == CellUserStatus.Flag)
-                            Console.ForegroundColor = ConsoleColor.Magenta;
-                    } else {
-                        if (cells[j, i].Status == CellUserStatus.Flag)
-                            Console.ForegroundColor = ConsoleColor.Yellow;
-                    }
+                    if (cells[j, i].Status == CellUserStatus.Flag)
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+
 
                     //write char
                     Console.Write(" ");
