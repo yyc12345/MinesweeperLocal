@@ -34,19 +34,35 @@ namespace MinesweeperLocal {
 
             bool isCanceled = false;
             var output = new MapOutput();
+            Console.Clear();    //clear help of startup screen
+
+            //declare width and height
+            int width = 10;
+            int height = 10;
+
             map.Refresh += () => {
                 if (!isCanceled) {
-                    Console.Clear();
-                    //now pos
-                    Console.WriteLine("Now pos: " + map.UserPos.ToString());
-                    int w = Console.BufferWidth / 5;
-                    int h = 16; //Console.BufferHeight / 3;
+                    var lineWidth = Console.BufferWidth;
+                    //reset position
+                    Console.SetCursorPosition(0, 0);
+                    int w = width;
+                    int h = height;
                     Point c = map.UserPos;
 
                     //map struct
                     var p = new Point(c.X - (w % 2 == 0 ? w / 2 - 1 : (w - 1) / 2), c.Y - (h % 2 == 0 ? h / 2 - 1 : (h - 1) / 2));
                     output.Output(map.GetCellData(p, w, h), c - p);
 
+                    //flush line
+                    Console.SetCursorPosition(0, height * 3);
+                    for (int i = 0; i < lineWidth; i++) Console.Write(" ");
+                    Console.SetCursorPosition(0, height * 3 + 1);
+                    for (int i = 0; i < lineWidth; i++) Console.Write(" ");
+
+                    //write data
+                    Console.SetCursorPosition(0, height * 3);
+                    //now pos
+                    Console.WriteLine("Now pos: " + map.UserPos.ToString());
                     //runtime message
                     Console.WriteLine($"Real-time message: {runtimeMsg}");
                     runtimeMsg = "";
@@ -58,45 +74,85 @@ namespace MinesweeperLocal {
 
             //init
             map.Initialize();
-
+            bool previousIsCommand = false;
             while (true) {
                 var result = Console.ReadKey(true);
 
                 switch (result.Key) {
+                    //=======================================================================
                     case ConsoleKey.W:
+                        if (previousIsCommand) { Console.Clear(); previousIsCommand = false; }
                         map.UserPos = map.UserPos + new Point(0, -1);
                         break;
                     case ConsoleKey.A:
+                        if (previousIsCommand) { Console.Clear(); previousIsCommand = false; }
                         map.UserPos = map.UserPos + new Point(-1, 0);
                         break;
                     case ConsoleKey.S:
+                        if (previousIsCommand) { Console.Clear(); previousIsCommand = false; }
                         map.UserPos = map.UserPos + new Point(0, 1);
                         break;
                     case ConsoleKey.D:
+                        if (previousIsCommand) { Console.Clear(); previousIsCommand = false; }
                         map.UserPos = map.UserPos + new Point(1, 0);
                         break;
                     case ConsoleKey.Enter:
+                        if (previousIsCommand) { Console.Clear(); previousIsCommand = false; }
                         map.Press();
                         break;
                     case ConsoleKey.Spacebar:
+                        if (previousIsCommand) { Console.Clear(); previousIsCommand = false; }
                         map.Flag();
+                        break;
+                    //===========================================================================
+                    case ConsoleKey.Tab:
+                        if (!previousIsCommand) previousIsCommand = true;
+                        isCanceled = true;
+                        Console.Write(@"MSL>");
+                        var cache = Console.ReadLine();
+                        if (cache != "") {
+                            var cache_sp = cache.Split();
+
+                            switch (cache_sp[0]) {
+                                case "close":
+                                    map.Close();
+                                    goto app_exit;
+                                case "size":
+                                    try {
+                                        int x = int.Parse(cache_sp[1]);
+                                        int y = int.Parse(cache_sp[2]);
+                                        if (x <= 0 || y <= 0) throw new ArgumentException();
+                                        width = x;
+                                        height = y;
+                                        Console.WriteLine("Do some operation to apply new size.");
+                                    } catch (Exception) {
+                                        Console.WriteLine("Error parameter!");
+                                    }
+                                    break;
+                                case "help":
+                                    Console.WriteLine("Minesweeper Local - The Infinity Minesweeper Playground");
+                                    Console.WriteLine("Operation");
+                                    Console.WriteLine("\tWASD to move cursor.");
+                                    Console.WriteLine("\tSpace to flag mine.");
+                                    Console.WriteLine("\tEnter to open warped cell or expand opened cell.");
+                                    Console.WriteLine("\tTab to open command inputer.");
+                                    Console.WriteLine("Command");
+                                    Console.WriteLine("\tclose - save current map's duration and exit app.");
+                                    Console.WriteLine("\tsize WIDTH HEIGHT - change mine window's size. it is 10x10 in default.");
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+
+                        isCanceled = false;
                         break;
                 }
 
-                if (result.Key == ConsoleKey.Tab) {
-                    isCanceled = true;
-                    Console.Write(@"MSL>");
-                    var cache = Console.ReadLine();
-
-                    if (cache == "close") {
-                        map.Close();
-                        break;
-                    }
-
-                    isCanceled = false;
-
-                }//else pass
             }
+
+            app_exit:
+            ;
 
         }
     }
